@@ -109,10 +109,8 @@ const login = async (req, res) => {
 
 const profile = async (req, res) => {
   try {
-
       const user = await UserModel.findOneByEmail(req.email)
       return res.json({ ok: true, msg:user })
-
   } catch (error) {
       console.log(error)
       return res.status(500).json({
@@ -122,9 +120,24 @@ const profile = async (req, res) => {
   }
 }
 
+const listUsers = async (req, res) => {
+  try {
+    const users = await UserModel.findAll()
+    return res.json({ ok: true, msg: users })
+  } catch (error) {
+    console.error('Error in listUsers:', error)
+    return res.status(500).json({
+      ok: false,
+      msg: 'Server error',
+      error: error.message
+    })
+  }
+}
 
 export const UserController = {
   register,
   login,
-  profile
+  profile,
+  listUsers
 }
+

@@ -35,8 +35,26 @@ const findOneByEmail = async (email) => {
     }
 }
 
+const findAll = async () => {
+    try {
+        const query = {
+            text: `
+            SELECT id, first_name, last_name, email, telephone_number, location
+            FROM "user"
+            ORDER BY id
+            `
+        }
+        const { rows } = await db.query(query)
+        return rows
+    } catch (error) {
+        console.error('Error in findAll:', error);
+        throw error;
+    }
+}
+
 export const UserModel = {
     create,
-    findOneByEmail
+    findOneByEmail,
+    findAll
 }
 
