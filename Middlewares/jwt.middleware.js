@@ -1,40 +1,43 @@
-
-import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken';
 
 export const verifyToken = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
 
-    let token = req.headers.authorization
+  console.log('Received token:', token);
 
-    if (!token) {
-        return res.status(401).json({ error: "Token not provided" });
-    }
+  if (!token) {
+    console.log('No token provided');
+    return res.status(401).json({ error: "Token no proporcionado" });
+  }
 
-    token = token.split(" ")[1]
-
-    try {
-
-        const { email, role_id } = jwt.verify(token, process.env.JWT_SECRET)
-        req.email = email
-        req.role_id = role_id
-
-        next()
-    } catch (error) {
-        console.log(error)
-        return res.status(400).json({ error: "Invalid token" });
-    }
-}
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('Error in verifyToken:', error);
+    res.status(401).json({ error: "Token inválido" });
+  }
+};
 
 export const verifyAdmin = (req, res, next) => {
-    if (req.role_id === 1) {
-        return next()
-    }
+  if (!req.user) {
+    return res.status(401).json({ error: "Usuario no autenticado" });
+  }
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Acceso denegado. Solo para administradores." });
+  }
+  next();
+};
 
-    return res.status(403).json({ error: "Unauthorized only admin user" })
-}
+export const verifyWorker = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Usuario no autenticado" });
+  }
+  if (req.user.role !== 'worker') {
+    return res.status(403).json({ error: "Acceso denegado. Solo para trabajadores." });
+  }
+  next();
+};
 
-export const verifyVet = (req, res, next) => {
-    if (req.role_id === 2 || req.role_id === 1) {
-        return next()
-    }
-    return res.status(403).json({ error: "Unauthorized only vet user" })
-}

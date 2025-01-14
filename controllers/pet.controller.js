@@ -2,47 +2,54 @@ import { petModel } from "../Models/pet.model.js";
 
 const register = async (req, res) => {
   try {
-    const { id, name, fk_breed, color, sex, date_birth } = req.body;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        ok: false,
+        msg: 'Usuario no autenticado'
+      });
+    }
 
-    // Validate required fields
-    if (!id || !name || !fk_breed || !color || !sex || !date_birth) {
+    const { name, fk_breed, color, sex, date_birth } = req.body;
+    const userId = req.user.id;
+
+    // Validación de campos requeridos
+    if (!name || !fk_breed || !color || !sex || !date_birth) {
       return res.status(400).json({
         ok: false,
-        msg: 'All fields are required'
+        msg: 'Todos los campos son requeridos: name, fk_breed, color, sex, date_birth'
       });
     }
 
-    // Check if pet with the given id already exists
-    const existingPet = await petModel.findOneById(id);
-    if (existingPet) {
-      return res.status(409).json({
-        ok: false,
-        msg: 'Pet with this ID already exists'
-      });
-    }
-
-    // Create new pet
     const newPet = await petModel.create({
-      id,
       name,
       fk_breed,
       color,
       sex,
-      date_birth
+      date_birth: new Date(date_birth)
     });
 
-    // Return success response
+    if (!newPet || !newPet.id) {
+      throw new Error('Error al crear la mascota');
+    }
+
+    const petOwner = await petModel.createPetOwner(userId, newPet.id);
+
+    if (!petOwner) {
+      throw new Error('Error al asociar la mascota con el usuario');
+    }
+
     return res.status(201).json({
       ok: true,
-      msg: 'Pet registered successfully',
-      pet: newPet
+      msg: 'Mascota registrada y asociada exitosamente',
+      pet: newPet,
+      petOwner: petOwner
     });
 
   } catch (error) {
-    console.error('Error in register:', error);
+    console.error('Error en register:', error);
     return res.status(500).json({
       ok: false,
-      msg: 'Server error',
+      msg: 'Error del servidor',
       error: error.message
     });
   }

@@ -1,116 +1,72 @@
 import bcryptjs from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import { workerModel } from '../Models/worker.model.js'
+import { workerModel } from "../Models/worker.model.js"
+import { UserModel } from "../Models/user.model.js"
 
 const register = async (req, res) => {
     try {
-        const { first_name, last_name, email, password, role_id, telephone_number, location, status, gender, emergency_contact_name, emergency_contact_relationship, emergency_contact_number, License_number, Years_experience, education, Certifications, date_birth } = req.body
+        const { id, first_name, last_name, email, password, telephone_number, role_id, status, date_birth, location, gender, license_number, years_experience, education, certifications } = req.body
 
-        if (!first_name || !last_name || !email || !password) {
-            return res.status(400).json({ ok: false, msg: "Missing required fields: first_name, last_name, email, password" })
-        }
-
-        const worker = await workerModel.findOneByEmail(email)
-        if (worker) {
-            return res.status(409).json({ ok: false, msg: "Email already exists" })
+        if (!id || !first_name || !last_name || !email || !password || !role_id || !status) {
+            return res.status(400).json({
+                msg: 'Missing required fields'
+            })
         }
 
         const salt = await bcryptjs.genSalt(10)
         const hashedPassword = await bcryptjs.hash(password, salt)
 
-        const newWorker = await workerModel.create({ 
-            first_name, 
-            last_name, 
-            email, 
-            password: hashedPassword, 
-            role_id, 
-            telephone_number, 
-            location, 
-            status, 
-            gender, 
-            emergency_contact_name, 
-            emergency_contact_relationship, 
-            emergency_contact_number, 
-            License_number, 
-            Years_experience, 
-            education, 
-            Certifications, 
-            date_birth 
+        // First, create the user
+        const newUser = await UserModel.create({
+            id,
+            first_name,
+            last_name,
+            telephone_number,
+            email,
+            password: hashedPassword,
+            permissions: 2, // Assuming 2 is for workers
+            location
         })
 
-        const token = jwt.sign({ email: newWorker.email, role_id: newWorker.role_id },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1h"
-            }
-        )
+        if (!newUser) {
+            return res.status(500).json({
+                msg: 'Error creating user'
+            })
+        }
+
+        // Then, create the worker
+        const newWorker = await workerModel.create({
+            id,
+            role_id,
+            status,
+            date_birth,
+            location,
+            gender,
+            license_number,
+            years_experience,
+            education,
+            certifications
+        })
 
         return res.status(201).json({
-            ok: true,
-            msg: {
-                token, role_id: newWorker.role_id
+            msg: 'Worker registered successfully',
+            worker: {
+                id: newWorker.id,
+                first_name: newUser.first_name,
+                last_name: newUser.last_name,
+                email: newUser.email,
+                role_id: newWorker.role_id
             }
         })
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({
-            ok: false,
-            msg: 'Error server'
-        })
-    }
-}
-
-const login = async (req, res) => {
-    try {
-        const { email, password } = req.body
-
-        if (!email || !password) {
-            return res
-                .status(400)
-                .json({ error: "Missing required fields: email, password" });
+        console.error('Error in register:', error)
+        if (error.constraint === 'user_email_key') {
+            return res.status(409).json({
+                msg: 'Email already exists'
+            })
         }
-
-        const worker = await workerModel.findOneByEmail(email)
-        if (!worker) {
-            return res.status(404).json({ error: "Worker not found" });
-        }
-
-        const isMatch = await bcryptjs.compare(password, worker.password)
-
-        if (!isMatch) {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
-
-        const token = jwt.sign({ email: worker.email, role_id: worker.role_id },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1h"
-            }
-        )
-
-        return res.json({
-            ok: true, msg: {
-                token, role_id: worker.role_id
-            }
-        })
-    } catch (error) {
-        console.log(error)
         return res.status(500).json({
-            ok: false,
-            msg: 'Error server'
-        })
-    }
-}
-
-const profile = async (req, res) => {
-    try {
-        const worker = await workerModel.findOneByEmail(req.email)
-        return res.json({ ok: true, msg: worker })
-    } catch (error) {
-        console.log(error)
-        return res.status(500).json({
-            ok: false,
-            msg: 'Error server'
+            msg: 'Server error',
+            error: error.message
         })
     }
 }
@@ -118,46 +74,163 @@ const profile = async (req, res) => {
 const findAll = async (req, res) => {
     try {
         const workers = await workerModel.findAll()
-        return res.json({ ok: true, msg: workers })
+        return res.json({ ok: true, workers })
     } catch (error) {
-        console.log(error)
+        console.error('Error in findAll:', error)
         return res.status(500).json({
-            ok: false,
-            msg: 'Error server'
+            msg: 'Server error',
+            error: error.message
         })
     }
 }
 
 const updateRoleVet = async (req, res) => {
     try {
-        const { uid } = req.params
-
-        const worker = await workerModel.findOneByUid(uid)
-        if (!worker) {
-            return res.status(404).json({ error: "Worker not found" });
+        const { id } = req.params
+        const updatedWorker = await workerModel.updateRoleVet(id)
+        if (!updatedWorker) {
+            return res.status(404).json({
+                msg: 'Worker not found'
+            })
         }
+        return res.json({
+            ok: true,
+            msg: 'Worker role updated to veterinarian',
+            worker: updatedWorker
+        })
+    } catch (error) {
+        console.error('Error in updateRoleVet:', error)
+        return res.status(500).json({
+            msg: 'Server error',
+            error: error.message
+        })
+    }
+}
 
-        const updatedWorker = await workerModel.updateRoleVet(uid)
+const updateWorker = async (req, res) => {
+    try {
+        const { id } = req.params
+        const { role_id, status, date_birth, location, gender, license_number, years_experience, education, certifications } = req.body
+
+        const updatedWorker = await workerModel.update(id, {
+            role_id,
+            status,
+            date_birth,
+            location,
+            gender,
+            license_number,
+            years_experience,
+            education,
+            certifications
+        })
+
+        if (!updatedWorker) {
+            return res.status(404).json({
+                msg: 'Worker not found'
+            })
+        }
 
         return res.json({
             ok: true,
-            msg: updatedWorker
+            msg: 'Worker updated successfully',
+            worker: updatedWorker
         })
-
     } catch (error) {
-        console.log(error)
+        console.error('Error in updateWorker:', error)
+        return res.status(500).json({
+            msg: 'Server error',
+            error: error.message
+        })
+    }
+}
+
+const deleteWorker = async (req, res) => {
+    try {
+        const { id } = req.params
+
+        const result = await workerModel.remove(id)
+
+        if (!result) {
+            return res.status(404).json({
+                msg: 'Worker not found'
+            })
+        }
+
+        return res.json({
+            ok: true,
+            msg: 'Worker deleted successfully',
+            id: result.id
+        })
+    } catch (error) {
+        console.error('Error in deleteWorker:', error)
+        return res.status(500).json({
+            msg: 'Server error',
+            error: error.message
+        })
+    }
+}
+
+const findWorkerById = async (req, res) => {
+    try {
+        const { id } = req.params
+        const worker = await workerModel.findOneById(id)
+
+        if (!worker) {
+            return res.status(404).json({
+                ok: false,
+                msg: 'Trabajador no encontrado'
+            })
+        }
+
+        // Estructurar la respuesta para separar los datos de worker y user
+        const response = {
+            ok: true,
+            worker: {
+                id: worker.id,
+                role_id: worker.role_id,
+                role_name: worker.role_name,
+                status: worker.status,
+                date_birth: worker.date_birth,
+                location: worker.location,
+                gender: worker.gender,
+                license_number: worker.license_number,
+                years_experience: worker.years_experience,
+                education: worker.education,
+                certifications: worker.certifications,
+                created_at: worker.created_at,
+                updated_at: worker.updated_at
+            },
+            user: {
+                id: worker.id,
+                first_name: worker.first_name,
+                last_name: worker.last_name,
+                email: worker.email,
+                telephone_number: worker.telephone_number,
+                permissions: worker.permissions,
+                permission_name: worker.permission_name,
+                location: worker.user_location,
+                created_at: worker.user_created_at,
+                updated_at: worker.user_updated_at
+            }
+        }
+
+        return res.json(response)
+    } catch (error) {
+        console.error('Error en findWorkerById:', error)
         return res.status(500).json({
             ok: false,
-            msg: 'Error server'
+            msg: 'Error del servidor',
+            error: error.message
         })
     }
 }
 
 export const workerController = {
     register,
-    login,
-    profile,
     findAll,
-    updateRoleVet
+    updateRoleVet,
+    updateWorker,
+    deleteWorker,
+    findWorkerById
 }
 

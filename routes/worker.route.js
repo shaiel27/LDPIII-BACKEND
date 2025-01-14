@@ -1,18 +1,16 @@
-import { Router } from "express";
-import { workerController } from "../controllers/worker.controller.js";
-import { verifyAdmin, verifyToken } from "../Middlewares/jwt.middleware.js";
+import express from 'express'
+import { workerController } from '../controllers/worker.controller.js'
+import { verifyToken, verifyAdmin } from '../Middlewares/jwt.middleware.js'
 
-const router = Router()
+const router = express.Router()
 
-// api/v1/workers
-
+router.use(verifyToken, verifyAdmin)
 router.post('/register', workerController.register)
-router.post('/login', workerController.login)
-router.get('/profile', verifyToken, workerController.profile)
+router.get('/list', workerController.findAll)
+router.get('/:id', workerController.findWorkerById)
+router.put('/:id/update-role-vet', workerController.updateRoleVet)
+router.put('/:id', workerController.updateWorker)
+router.delete('/:id', workerController.deleteWorker)
 
-// Admin
-router.get('/', verifyToken, verifyAdmin, workerController.findAll)
-router.put('/update-role-vet/:uid', verifyToken, verifyAdmin, workerController.updateRoleVet)
-
-export default router;
+export default router
 
