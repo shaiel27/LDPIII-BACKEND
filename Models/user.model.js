@@ -1,14 +1,20 @@
 import { db } from '../database/connection.database.js'
 
-const create = async ({id, first_name, last_name, telephone_number, email, password, location }) => {
+const create = async ({ first_name, last_name, telephone_number, email, password, location }) => {
     try {
+        // Primero, obtenemos el máximo id actual
+        const getMaxIdQuery = {
+            text: 'SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM "user"'
+        }
+        const { rows: [{ next_id }] } = await db.query(getMaxIdQuery)
+
         const query = {
             text: `
             INSERT INTO "user" (id, first_name, last_name, telephone_number, email, password, permissions, location)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id, email, first_name, last_name, telephone_number, location, permissions
             `,
-            values: [id, first_name, last_name, telephone_number, email, password, 3, location] // 3 is the default permission for normal users
+            values: [next_id, first_name, last_name, telephone_number, email, password, 3, location] // 3 is the default permission for normal users
         }
         const { rows } = await db.query(query)
         return rows[0]
@@ -17,6 +23,7 @@ const create = async ({id, first_name, last_name, telephone_number, email, passw
         throw error;
     }
 }
+
 
 const findOneByEmail = async (email) => {
     try {

@@ -2,10 +2,11 @@ import bcryptjs from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { UserModel } from "../Models/user.model.js"
 import { workerModel } from "../Models/worker.model.js"
+import { petModel } from "../Models/pet.model.js"
 
 const register = async (req, res) => {
   try {
-    const {id, first_name, last_name, telephone_number, email, location, password} = req.body
+    const { first_name, last_name, telephone_number, email, location, password } = req.body
 
     if (!first_name || !last_name || !email || !password) {
       return res.status(400).json({
@@ -24,7 +25,6 @@ const register = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, salt)
 
     const newUser = await UserModel.create({
-      id,
       first_name,
       last_name,
       telephone_number,
@@ -65,6 +65,8 @@ const register = async (req, res) => {
     })
   }
 }
+
+
 
 const login = async (req, res) => {
   try {
@@ -138,13 +140,10 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    // Clear the token cookie
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production'
     });
-
-    // Clear any other session-related cookies if needed
     res.clearCookie('role');
     res.clearCookie('permissions');
 
@@ -193,11 +192,58 @@ const listUsers = async (req, res) => {
   }
 }
 
+const getUserPets = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const pets = await petModel.getPetsByUserId(userId);
+    return res.json({ ok: true, pets });
+  } catch (error) {
+    console.error("Error in getUserPets:", error);
+    return res.status(500).json({ ok: false, msg: 'Server error' });
+  }
+}
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { first_name, last_name, telephone_number, location } = req.body;
+
+    const updatedUser = await UserModel.updateProfile(userId, {
+      first_name,
+      last_name,
+      telephone_number,
+      location
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        ok: false,
+        msg: 'Usuario no encontrado'
+      });
+    }
+
+    return res.json({
+      ok: true,
+      msg: 'Perfil actualizado exitosamente',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error in updateProfile:', error);
+    return res.status(500).json({
+      ok: false,
+      msg: 'Error del servidor',
+      error: error.message
+    });
+  }
+}
+
+
 export const UserController = {
   register,
   login,
   logout,
   profile,
-  listUsers
+  listUsers,
+  getUserPets,
+  updateProfile
 }
 

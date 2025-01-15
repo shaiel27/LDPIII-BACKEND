@@ -110,13 +110,30 @@ const updateRoleVet = async (req, res) => {
 const updateWorker = async (req, res) => {
     try {
         const { id } = req.params
-        const { role_id, status, date_birth, location, gender, license_number, years_experience, education, certifications } = req.body
+        const { 
+            first_name, last_name, email, telephone_number, location, // User fields
+            role_id, status, date_birth, gender, license_number, years_experience, education, certifications // Worker fields
+        } = req.body
 
+        // Update user information
+        const updatedUser = await UserModel.updateProfile(id, {
+            first_name,
+            last_name,
+            telephone_number,
+            location
+        })
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                msg: 'User not found'
+            })
+        }
+
+        // Update worker information
         const updatedWorker = await workerModel.update(id, {
             role_id,
             status,
             date_birth,
-            location,
             gender,
             license_number,
             years_experience,
@@ -133,7 +150,10 @@ const updateWorker = async (req, res) => {
         return res.json({
             ok: true,
             msg: 'Worker updated successfully',
-            worker: updatedWorker
+            worker: {
+                ...updatedUser,
+                ...updatedWorker
+            }
         })
     } catch (error) {
         console.error('Error in updateWorker:', error)
@@ -224,6 +244,7 @@ const findWorkerById = async (req, res) => {
         })
     }
 }
+
 
 export const workerController = {
     register,
