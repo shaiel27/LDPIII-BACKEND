@@ -6,6 +6,7 @@ import petRouter from './routes/pet.route.js'
 import workerRouter from './routes/worker.route.js'
 import appointmentRouter from './routes/appointment.route.js'
 import consultationRouter from './routes/consultation.route.js'
+import productRouter from './routes/product.route.js'
 const app = express()
 
 // Middleware
@@ -18,8 +19,10 @@ app.use('/api/v1/pets', petRouter)
 app.use('/api/v1/workers', workerRouter)
 app.use('/api/v1/appointments', appointmentRouter)
 app.use('/api/v1/consultations', consultationRouter)
+app.use('/api/v1/products', productRouter)
 
 
 const PORT = process.env.PORT || 3001
 
 app.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`))
+

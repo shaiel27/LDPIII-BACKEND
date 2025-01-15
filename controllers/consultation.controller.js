@@ -66,6 +66,42 @@ const getConsultationById = async (req, res) => {
     }
 }
 
+const updateConsultation = async (req, res) => {
+    try {
+        const { id } = req.params
+        const { diagnosis, medical_exams, remarks, treatment_id, price, utensils } = req.body
+
+        const updatedConsultation = await consultationModel.update(id, {
+            diagnosis,
+            medical_exams,
+            remarks,
+            treatment_id,
+            price,
+            utensils
+        })
+
+        if (!updatedConsultation) {
+            return res.status(404).json({
+                ok: false,
+                msg: 'Consulta no encontrada'
+            })
+        }
+
+        res.json({
+            ok: true,
+            msg: 'Consulta actualizada exitosamente',
+            consultation: updatedConsultation
+        })
+    } catch (error) {
+        console.error('Error en updateConsultation:', error)
+        res.status(500).json({
+            ok: false,
+            msg: 'Error del servidor',
+            error: error.message
+        })
+    }
+}
+
 // Función auxiliar para determinar el estado de la cita
 const getAppointmentStatus = (dateRequest) => {
     const now = new Date();
@@ -82,6 +118,7 @@ const getAppointmentStatus = (dateRequest) => {
 
 export const consultationController = {
     getUserConsultations,
-    getConsultationById
+    getConsultationById,
+    updateConsultation
 }
 

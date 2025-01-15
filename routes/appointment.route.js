@@ -1,6 +1,6 @@
 import express from 'express'
 import { appointmentController } from '../controllers/appointment.controller.js'
-import { verifyToken, verifyAdmin } from '../Middlewares/jwt.middleware.js'
+import { verifyToken, verifyAdmin, verifyWorker } from '../Middlewares/jwt.middleware.js'
 
 const router = express.Router()
 
@@ -18,6 +18,12 @@ router.get('/:id', appointmentController.getAppointmentById)
 
 // Obtener todas las citas del usuario autenticado
 router.get('/user/all', appointmentController.getUserAppointments)
+
+// Obtener todas las citas del trabajador autenticado
+router.get('/worker/all', verifyWorker, appointmentController.getWorkerAppointments)
+
+// Confirmar una cita (solo trabajadores)
+router.put('/:id/confirm', verifyWorker, appointmentController.confirmAppointment)
 
 // Actualizar una cita (el usuario autenticado solo puede actualizar sus propias citas, el admin puede actualizar todas)
 router.put('/:id', appointmentController.updateAppointment)

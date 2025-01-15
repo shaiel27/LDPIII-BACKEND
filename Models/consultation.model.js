@@ -28,8 +28,8 @@ const findByUserId = async (userId) => {
         const { rows } = await db.query(query)
         return rows
     } catch (error) {
-        console.error('Error in findByUserId:', error);
-        throw error;
+        console.error('Error in findByUserId:', error)
+        throw error
     }
 }
 
@@ -58,13 +58,57 @@ const findById = async (id) => {
         const { rows } = await db.query(query)
         return rows[0]
     } catch (error) {
-        console.error('Error in findById:', error);
-        throw error;
+        console.error('Error in findById:', error)
+        throw error
+    }
+}
+
+const create = async ({ appointment_id, diagnosis = null, medical_exams = null, remarks = null, treatment_id = null, price = null, utensils = null }) => {
+    try {
+        const query = {
+            text: `
+            INSERT INTO consultation (appointment_id, diagnosis, medical_exams, remarks, treatment_id, price, utensils)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            `,
+            values: [appointment_id, diagnosis, medical_exams, remarks, treatment_id, price, utensils]
+        }
+        const { rows } = await db.query(query)
+        return rows[0]
+    } catch (error) {
+        console.error('Error in create consultation:', error)
+        throw error
+    }
+}
+
+const update = async (id, { diagnosis, medical_exams, remarks, treatment_id, price, utensils }) => {
+    try {
+        const query = {
+            text: `
+            UPDATE consultation
+            SET diagnosis = COALESCE($2, diagnosis),
+                medical_exams = COALESCE($3, medical_exams),
+                remarks = COALESCE($4, remarks),
+                treatment_id = COALESCE($5, treatment_id),
+                price = COALESCE($6, price),
+                utensils = COALESCE($7, utensils)
+            WHERE id = $1
+            RETURNING *
+            `,
+            values: [id, diagnosis, medical_exams, remarks, treatment_id, price, utensils]
+        }
+        const { rows } = await db.query(query)
+        return rows[0]
+    } catch (error) {
+        console.error('Error in update consultation:', error)
+        throw error
     }
 }
 
 export const consultationModel = {
     findByUserId,
-    findById
+    findById,
+    create,
+    update
 }
 

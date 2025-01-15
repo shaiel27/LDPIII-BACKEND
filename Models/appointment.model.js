@@ -126,6 +126,59 @@ const findByUserId = async (userId) => {
         throw error;
     }
 }
+const getWorkerAppointments = async (req, res) => {
+    try {
+        const workerId = req.user.id
+        const appointments = await appointmentModel.findByWorkerId(workerId)
+        
+        res.json({
+            ok: true,
+            appointments
+        })
+    } catch (error) {
+        console.error('Error en getWorkerAppointments:', error)
+        res.status(500).json({
+            ok: false,
+            msg: 'Error del servidor',
+            error: error.message
+        })
+    }
+}
+
+const confirmAppointment = async (req, res) => {
+    try {
+        const { id } = req.params
+        const workerId = req.user.id
+
+        const confirmedAppointment = await appointmentModel.confirmAppointment(id, workerId)
+
+        if (!confirmedAppointment) {
+            return res.status(404).json({
+                ok: false,
+                msg: 'Cita no encontrada o ya confirmada'
+            })
+        }
+
+        // Crear una nueva consulta basada en la cita confirmada
+        const newConsultation = await consultationModel.create({
+            appointment_id: confirmedAppointment.id,
+        })
+
+        res.json({
+            ok: true,
+            msg: 'Cita confirmada y consulta creada exitosamente',
+            appointment: confirmedAppointment,
+            consultation: newConsultation
+        })
+    } catch (error) {
+        console.error('Error en confirmAppointment:', error)
+        res.status(500).json({
+            ok: false,
+            msg: 'Error del servidor',
+            error: error.message
+        })
+    }
+}
 
 export const appointmentModel = {
     create,
@@ -133,6 +186,8 @@ export const appointmentModel = {
     findOneById,
     update,
     remove,
-    findByUserId
+    findByUserId,
+    confirmAppointment,
+    getWorkerAppointments
 }
 
