@@ -78,7 +78,9 @@ const login = async (req, res) => {
 
     console.log(`Login attempt for email: ${email}`);
 
-    let user = await UserModel.findOneByEmail(email)
+    console.log('Attempting to find user:', email);
+    let user = await UserModel.findOneByEmail(email);
+    console.log('User found:', user);
     let isWorker = false
 
     if (!user) {
@@ -94,12 +96,16 @@ const login = async (req, res) => {
 
     console.log(`User found: ${user.id}`);
 
-    const isMatch = await bcryptjs.compare(password, user.password);
-
-    if (!isMatch) {
-      console.log(`Incorrect password for user: ${user.id}`);
-      return res.status(401).json({ error: "Invalid credentials" });
+    if (user) {
+      console.log('Comparing passwords');
+      const isMatch = await bcryptjs.compare(password, user.password);
+      console.log('Password match:', isMatch);
+      if (!isMatch) {
+        console.log(`Incorrect password for user: ${user.id}`);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
     }
+
 
     console.log(`Successful login for user: ${user.id}`);
 
