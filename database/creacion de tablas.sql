@@ -235,20 +235,15 @@ VALUES
 
 --Insertar mascosatas	
 INSERT INTO pet (name, fk_breed, color, sex, date_birth) VALUES
-('Max', 11, 'Dorado', 'Macho', '2020-03-10'),
-('Luna', 12, 'Blanco y negro', 'Hembra', '2021-07-22');
+('Max', 1, 'Dorado', 'Macho', '2020-03-10'),
+('Luna', 2, 'Blanco y negro', 'Hembra', '2021-07-22');
 
 INSERT INTO pet_owners (id, user_id, pet_id) VALUES
-(3, 2, 11),
-(4, 3, 12);
+(3, 2, 3),
+(4, 3, 4);
 
 INSERT INTO schedule (id, date, monday, tuesday, wednesday, thursday, friday, worker_id) VALUES
 (1, '2023-05-22', '09:00-17:00', '09:00-17:00', '09:00-17:00', '09:00-17:00', '09:00-17:00', 4);
-
-INSERT INTO appointment (service_id, pet_owner_id, schedule_id, problem, date_request) VALUES
-(1, 1, 1, 'Revisión anual', '2023-05-23 10:00:00'),
-(2, 2, 1, 'Vacunación programada', '2023-05-24 14:30:00');
-
 
 INSERT INTO service (name, description)
 	VALUES 
@@ -256,6 +251,13 @@ INSERT INTO service (name, description)
   ('Vacunación', 'Aplicación de vacunas preventivas para diversas enfermedades.'),
   ('Desparasitación', 'Tratamiento para eliminar parásitos internos y externos.'),
   ('Cirugía', 'Procedimientos quirúrgicos para diversas condiciones médicas.');
+
+
+
+INSERT INTO appointment (service_id, pet_owner_id, schedule_id, problem, date_request) VALUES
+(1, 3, 1, 'Revisión anual', '2023-05-23 10:00:00'),
+(2, 4, 2, 'Vacunación programada', '2023-05-24 14:30:00');
+
 
 
 
