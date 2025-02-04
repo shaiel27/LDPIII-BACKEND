@@ -21,6 +21,8 @@ CREATE TABLE "user" (
   password TEXT NOT NULL,
   permissions BIGINT DEFAULT 3 REFERENCES permissions (id), -- Relación con la tabla permissions
   location TEXT,
+  security_word TEXT,
+   user_tokenvarchar,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -327,3 +329,7 @@ VALUES
   select * from "consultation";
 
   select * from "medical_history";
+
+  ALTER TABLE "user" ADD COLUMN security_word TEXT;
+
+  ALTER TABLE "user" ADD COLUMN user_token varchar;

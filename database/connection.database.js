@@ -1,21 +1,23 @@
-import 'dotenv/config'
-import pg from 'pg'
+import pg from 'pg';
+import dotenv from 'dotenv';
 
-const connectionString = process.env.DATABASE_URL
- 
-const {Pool}=pg
+dotenv.config();
 
-export const db=new Pool({
-    allowExitOnIdle:true,
-    connectionString,
-})
-const initDatabase = async () => {
-    try {
-      await db.query('SELECT NOW()')
-      console.log('DATABASE connected')
-    } catch (error) {
-      console.error('Database connection error:', error)
-    }
-  }
-  
-  initDatabase()
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+pool.on('connect', () => {
+  console.log('Connected to the database');
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+export const db = {
+  query: (text, params) => pool.query(text, params),
+};

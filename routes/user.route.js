@@ -12,6 +12,9 @@ router.get("/list", verifyToken, verifyAdmin, UserController.listUsers)
 router.put("/profile", verifyToken, UserController.updateProfile)
 router.get("/pets", verifyToken, UserController.getUserPets)
 router.post("/recover-password", UserController.recoverPassword)
+router.delete("/remove/:id", verifyToken, verifyAdmin, UserController.removeUser)
+router.get("/search", verifyToken, verifyAdmin, UserController.searchByName)
+
 
 export default router
 

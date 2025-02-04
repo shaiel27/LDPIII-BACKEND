@@ -21,6 +21,9 @@ const register = async (req, res) => {
       })
     }
 
+    const existingUser = await UserModel.findOneByEmail(email)
+    if (existingUser) return res.status(400).json({ ok: false, message: "Email already exists" })
+
     const salt = await bcryptjs.genSalt(10)
     const hashedPassword = await bcryptjs.hash(password, salt)
 
@@ -45,18 +48,23 @@ const register = async (req, res) => {
       expiresIn: "1h",
     })
 
+    const expiration = new Date(Date.now() + 3600000) // 1 hour from now
+    await UserModel.saveLoginToken(newUser.id, token, expiration)
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000,
+    })
+
+    const { password: _, ...userWithoutPassword } = newUser
     return res.status(201).json({
       ok: true,
+      user: userWithoutPassword,
       token,
     })
   } catch (error) {
     console.error("Error in register:", error)
-    if (error.constraint === "user_email_key") {
-      return res.status(409).json({
-        ok: false,
-        msg: "Email already exists",
-      })
-    }
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -68,117 +76,123 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body
+    console.log("Login attempt for email:", email)
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Missing required fields: email, password" })
+      return res.status(400).json({ ok: false, message: "Email and password are required" })
     }
 
-    console.log(`Login attempt for email: ${email}`)
-
-    console.log("Attempting to find user:", email)
-    let user = await UserModel.findOneByEmail(email)
-    console.log("User found:", user)
-    let isWorker = false
+    const user = await UserModel.findOneByEmail(email)
+    console.log("User found:", user ? "Yes" : "No")
 
     if (!user) {
-      console.log(`User not found in users table, searching in workers table`)
-      user = await workerModel.findOneByEmail(email)
-      isWorker = true
+      return res.status(400).json({ ok: false, message: "Email or password is invalid" })
     }
 
-    if (!user) {
-      console.log(`No user found with email: ${email}`)
-      return res.status(404).json({ error: "User not found" })
-    }
+    console.log("Stored hashed password:", user.password)
+    console.log("Provided password:", password)
 
-    console.log(`User found: ${user.id}`)
+    const validPassword = await bcryptjs.compare(password, user.password)
+    console.log("Password valid:", validPassword)
 
-    if (user) {
-      console.log("Comparing passwords")
-      const isMatch = await bcryptjs.compare(password, user.password)
-      console.log("Password match:", isMatch)
-      if (!isMatch) {
-        console.log(`Incorrect password for user: ${user.id}`)
-        return res.status(401).json({ error: "Invalid credentials" })
-      }
-    }
-
-    console.log(`Successful login for user: ${user.id}`)
-
-    let role
-    if (user.permission_name === "Admin") {
-      role = "admin"
-    } else if (user.permission_name === "Vet" || isWorker) {
-      role = "worker"
-    } else {
-      role = "user"
+    if (!validPassword) {
+      return res.status(400).json({ ok: false, message: "Email or password is invalid" })
     }
 
     const token = jwt.sign(
       {
-        id: user.id,
+        userId: user.id,
         email: user.email,
-        role: role,
         permissions: user.permissions,
+        permission_name: user.permission_name,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" },
     )
 
     console.log("Generated token:", token)
-    console.log("User role:", role)
 
-    return res.json({
+    const expiration = new Date(Date.now() + 3600000) // 1 hour from now
+    await UserModel.saveLoginToken(user.id, token, expiration)
+
+    res.json({
       ok: true,
       token,
-      role: role,
       permissions: user.permissions,
+      permission_name: user.permission_name,
+      message: "Login successful. Please include this token in the Authorization header as 'Bearer <token>'",
     })
   } catch (error) {
-    console.error("Error in login:", error)
-    return res.status(500).json({ ok: false, msg: "Server error" })
-  }
-}
-
-const logout = async (req, res) => {
-  try {
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-    })
-    res.clearCookie("role")
-    res.clearCookie("permissions")
-
-    return res.json({
-      ok: true,
-      msg: "Logout successful",
-    })
-  } catch (error) {
-    console.error("Error in logout:", error)
-    return res.status(500).json({
+    console.error("Login error:", error)
+    res.status(500).json({
       ok: false,
-      msg: "Server error",
+      msg: "Server Error",
       error: error.message,
     })
   }
 }
 
-const profile = async (req, res) => {
+const logout = async (req, res) => {
   try {
-    const user = await UserModel.findOneById(req.user.id)
-    if (!user) {
-      const worker = await workerModel.findOneById(req.user.id)
-      if (!worker) {
-        return res.status(404).json({ error: "User not found" })
-      }
-      return res.json({ ok: true, user: worker, role: "worker" })
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+      return res.status(401).json({ ok: false, message: "No token provided" })
     }
-    return res.json({ ok: true, user })
+
+    const [bearer, token] = authHeader.split(" ")
+    if (bearer !== "Bearer" || !token) {
+      return res.status(401).json({ ok: false, message: "Invalid token format" })
+    }
+
+    const user = await UserModel.findUserByLoginToken(token)
+
+    if (!user) {
+      return res.status(403).json({ ok: false, message: "Invalid token" })
+    }
+
+    await UserModel.clearLoginToken(user.id)
+
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    })
+
+    return res.json({ ok: true, message: "Sesión cerrada exitosamente" })
   } catch (error) {
-    console.error("Error in profile:", error)
-    return res.status(500).json({ ok: false, msg: "Server error" })
+    console.error("Error al cerrar sesión:", error)
+    return res.status(500).json({ ok: false, message: "Error al cerrar sesión" })
   }
 }
+
+const profile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log("User ID from token:", userId); // Añade este log
+
+    const user = await UserModel.findUserById(userId);
+    console.log("User found:", user); // Añade este log
+
+    if (!user) {
+      return res.status(404).json({ ok: false, message: "User not found" });
+    }
+
+    let worker = null;
+    if (user.permissions === 2) {
+      worker = await workerModel.findOneById(userId);
+      console.log("Worker found:", worker); // Añade este log si es necesario
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    return res.json({
+      ok: true,
+      user: userWithoutPassword,
+      worker: worker,
+    });
+  } catch (error) {
+    console.error("Error in profile:", error);
+    return res.status(500).json({ ok: false, msg: "Server error" });
+  }
+};
 
 const listUsers = async (req, res) => {
   try {
@@ -196,20 +210,49 @@ const listUsers = async (req, res) => {
 
 const getUserPets = async (req, res) => {
   try {
-    const userId = req.user.id
-    const pets = await petModel.getPetsByUserId(userId)
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+      return res.status(401).json({ ok: false, message: "No token provided" })
+    }
+
+    const [bearer, token] = authHeader.split(" ")
+    if (bearer !== "Bearer" || !token) {
+      return res.status(401).json({ ok: false, message: "Invalid token format" })
+    }
+
+    const user = await UserModel.findUserByLoginToken(token)
+    if (!user) {
+      return res.status(401).json({ ok: false, message: "Invalid token" })
+    }
+
+    const pets = await petModel.getPetsByUserId(user.id)
     return res.json({ ok: true, pets })
   } catch (error) {
     console.error("Error in getUserPets:", error)
     return res.status(500).json({ ok: false, msg: "Server error" })
   }
 }
+
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+      return res.status(401).json({ ok: false, message: "No token provided" })
+    }
+
+    const [bearer, token] = authHeader.split(" ")
+    if (bearer !== "Bearer" || !token) {
+      return res.status(401).json({ ok: false, message: "Invalid token format" })
+    }
+
+    const user = await UserModel.findUserByLoginToken(token)
+    if (!user) {
+      return res.status(401).json({ ok: false, message: "Invalid token" })
+    }
+
     const { first_name, last_name, telephone_number, location, security_word } = req.body
 
-    const updatedUser = await UserModel.updateProfile(userId, {
+    const updatedUser = await UserModel.updateProfile(user.id, {
       first_name,
       last_name,
       telephone_number,
@@ -264,12 +307,55 @@ const recoverPassword = async (req, res) => {
 
     await UserModel.updatePassword(user.id, hashedPassword)
 
+    // Clear any existing login token
+    await UserModel.clearLoginToken(user.id)
+
     return res.json({
       ok: true,
       msg: "Password updated successfully",
     })
   } catch (error) {
     console.error("Error in recoverPassword:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
+const removeUser = async (req, res) => {
+  try {
+    const { id } = req.params
+    const removedUser = await UserModel.removeUser(id)
+    if (!removedUser) {
+      return res.status(404).json({
+        ok: false,
+        msg: "User not found",
+      })
+    }
+    return res.json({
+      ok: true,
+      msg: "User removed successfully",
+      user: removedUser,
+    })
+  } catch (error) {
+    console.error("Error in removeUser:", error)
+    return res.status(500).json({
+      ok: false,
+      msg: "Server error",
+      error: error.message,
+    })
+  }
+}
+
+const searchByName = async (req, res) => {
+  try {
+    const { name } = req.query
+    const users = await UserModel.searchByName(name)
+    return res.json({ ok: true, users })
+  } catch (error) {
+    console.error("Error in searchByName:", error)
     return res.status(500).json({
       ok: false,
       msg: "Server error",
@@ -287,5 +373,7 @@ export const UserController = {
   getUserPets,
   updateProfile,
   recoverPassword,
+  removeUser,
+  searchByName,
 }
 
