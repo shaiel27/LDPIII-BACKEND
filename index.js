@@ -9,6 +9,7 @@ import appointmentRouter from "./routes/appointment.route.js"
 import consultationRouter from "./routes/consultation.route.js"
 import productRouter from "./routes/product.route.js"
 import scheduleRouter from "./routes/schedule.route.js"
+// import dashroouter from "./routes/dashboard.route.js"
 
 const app = express()
 
@@ -36,6 +37,7 @@ app.use("/api/v1/appointments", appointmentRouter)
 app.use("/api/v1/consultations", consultationRouter)
 app.use("/api/v1/products", productRouter)
 app.use("/api/v1/schedules", scheduleRouter)
+// app.use("/api/v1/dashboard",dashroouter)
 
 const PORT = process.env.PORT || 3001
 
