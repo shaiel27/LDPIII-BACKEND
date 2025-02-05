@@ -327,6 +327,7 @@ VALUES
   select * from "appointment";
 
   select * from "consultation";
+  select * from "schedule";
 
   select * from "medical_history";
 

@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken"
 import { UserModel } from "../Models/user.model.js"
-
 export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization
 
@@ -22,7 +21,12 @@ export const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "Token inválido o expirado" })
     }
 
-    req.user = decoded
+    req.user = {
+      id: user.id,
+      email: user.email,
+      permissions: user.permissions,
+      permission_name: user.permission_name,
+    }
     next()
   } catch (error) {
     console.error("Error in verifyToken:", error)
@@ -40,7 +44,7 @@ export const verifyAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
-  if (req.user.role !== "Admin") {
+  if (req.user.permissions != "1") {
     return res.status(403).json({ error: "Acceso denegado. Solo para administradores." })
   }
   next()
@@ -50,7 +54,7 @@ export const verifyWorker = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Usuario no autenticado" })
   }
-  if (req.user.role !== "Vet") {
+  if (req.user.permissions != "2") {
     return res.status(403).json({ error: "Acceso denegado. Solo para trabajadores." })
   }
   next()

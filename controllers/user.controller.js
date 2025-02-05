@@ -76,27 +76,15 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body
-    console.log("Login attempt for email:", email)
-
-    if (!email || !password) {
-      return res.status(400).json({ ok: false, message: "Email and password are required" })
-    }
 
     const user = await UserModel.findOneByEmail(email)
-    console.log("User found:", user ? "Yes" : "No")
-
     if (!user) {
-      return res.status(400).json({ ok: false, message: "Email or password is invalid" })
+      return res.status(400).json({ ok: false, message: "Email o contraseña inválidos" })
     }
 
-    console.log("Stored hashed password:", user.password)
-    console.log("Provided password:", password)
-
     const validPassword = await bcryptjs.compare(password, user.password)
-    console.log("Password valid:", validPassword)
-
     if (!validPassword) {
-      return res.status(400).json({ ok: false, message: "Email or password is invalid" })
+      return res.status(400).json({ ok: false, message: "Email o contraseña inválidos" })
     }
 
     const token = jwt.sign(
@@ -104,31 +92,30 @@ const login = async (req, res) => {
         userId: user.id,
         email: user.email,
         permissions: user.permissions,
-        permission_name: user.permission_name,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" },
     )
 
-    console.log("Generated token:", token)
-
-    const expiration = new Date(Date.now() + 3600000) // 1 hour from now
+    const expiration = new Date(Date.now() + 3600000) // 1 hora desde ahora
     await UserModel.saveLoginToken(user.id, token, expiration)
+
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000")
+    res.header("Access-Control-Allow-Credentials", "true")
 
     res.json({
       ok: true,
       token,
-      permissions: user.permissions,
-      permission_name: user.permission_name,
-      message: "Login successful. Please include this token in the Authorization header as 'Bearer <token>'",
+      user: {
+        id: user.id,
+        email: user.email,
+        permissions: user.permissions,
+        permission_name: user.permission_name,
+      },
     })
   } catch (error) {
     console.error("Login error:", error)
-    res.status(500).json({
-      ok: false,
-      msg: "Server Error",
-      error: error.message,
-    })
+    res.status(500).json({ ok: false, message: "Error del servidor" })
   }
 }
 
@@ -166,37 +153,32 @@ const logout = async (req, res) => {
 
 const profile = async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log("User ID from token:", userId); // Añade este log
+    const userId = req.user.id
+    console.log("Fetching profile for user ID:", userId)
 
-    const user = await UserModel.findUserById(userId);
-    console.log("User found:", user); // Añade este log
+    const user = await UserModel.findUserById(userId)
+    console.log("User found:", user ? "Yes" : "No")
 
     if (!user) {
-      return res.status(404).json({ ok: false, message: "User not found" });
+      return res.status(404).json({ ok: false, message: "User not found" })
     }
 
-    let worker = null;
-    if (user.permissions === 2) {
-      worker = await workerModel.findOneById(userId);
-      console.log("Worker found:", worker); // Añade este log si es necesario
-    }
-
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _, ...userWithoutPassword } = user
     return res.json({
       ok: true,
       user: userWithoutPassword,
-      worker: worker,
-    });
+    })
   } catch (error) {
-    console.error("Error in profile:", error);
-    return res.status(500).json({ ok: false, msg: "Server error" });
+    console.error("Error in profile:", error)
+    return res.status(500).json({ ok: false, msg: "Server error" })
   }
-};
+}
 
 const listUsers = async (req, res) => {
   try {
+    console.log("Fetching list of users")
     const users = await UserModel.findAll()
+    console.log("Number of users found:", users.length)
     return res.json({ ok: true, users })
   } catch (error) {
     console.error("Error in listUsers:", error)

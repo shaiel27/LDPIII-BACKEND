@@ -5,74 +5,77 @@ import { verifyToken, verifyAdmin } from "../Middlewares/jwt.middleware.js"
 
 const register = async (req, res) => {
   try {
-    verifyAdmin(req, res, async () => {
-      const {
-        id,
+    const {
+      first_name,
+      last_name,
+      email,
+      password,
+      telephone_number,
+      role_id,
+      status,
+      date_birth,
+      location,
+      gender,
+      license_number,
+      years_experience,
+      education,
+      certifications,
+      schedule,
+    } = req.body
+
+    if (!first_name || !last_name || !email || !password || !role_id || !status) {
+      return res.status(400).json({
+        msg: "Missing required fields",
+      })
+    }
+
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash(password, salt)
+
+    // Create user with permissions explicitly set to 2 for workers
+    const newUser = await UserModel.create({
+      first_name,
+      last_name,
+      telephone_number,
+      email,
+      password: hashedPassword,
+      permissions: 2, // Explicitly set to 2 for workers
+      location,
+    })
+
+    if (!newUser) {
+      throw new Error("Error creating user")
+    }
+
+    // Create worker
+    const newWorker = await workerModel.create({
+      id: newUser.id,
+      role_id,
+      status,
+      date_birth,
+      location,
+      gender,
+      license_number,
+      years_experience,
+      education,
+      certifications,
+    })
+
+    // Create schedule
+    if (schedule) {
+      await scheduleModel.create(newWorker.id, schedule)
+    }
+
+    return res.status(201).json({
+      msg: "Worker registered successfully",
+      worker: {
+        id: newWorker.id,
         first_name,
         last_name,
         email,
-        password,
-        telephone_number,
-        role_id,
-        status,
-        date_birth,
-        location,
-        gender,
-        license_number,
-        years_experience,
-        education,
-        certifications,
-      } = req.body
-
-      if (!id || !first_name || !last_name || !email || !password || !role_id || !status) {
-        return res.status(400).json({
-          msg: "Missing required fields",
-        })
-      }
-
-      const salt = await bcryptjs.genSalt(10)
-      const hashedPassword = await bcryptjs.hash(password, salt)
-
-      const newUser = await UserModel.create({
-        id,
-        first_name,
-        last_name,
-        telephone_number,
-        email,
-        password: hashedPassword,
+        role_id: newWorker.role_id,
         permissions: 2,
-        location,
-      })
-
-      if (!newUser) {
-        return res.status(500).json({
-          msg: "Error creating user",
-        })
-      }
-
-      const newWorker = await workerModel.create({
-        id,
-        role_id,
-        status,
-        date_birth,
-        location,
-        gender,
-        license_number,
-        years_experience,
-        education,
-        certifications,
-      })
-
-      return res.status(201).json({
-        msg: "Worker registered successfully",
-        worker: {
-          id: newWorker.id,
-          first_name: newUser.first_name,
-          last_name: newUser.last_name,
-          email: newUser.email,
-          role_id: newWorker.role_id,
-        },
-      })
+      },
     })
   } catch (error) {
     console.error("Error in register:", error)

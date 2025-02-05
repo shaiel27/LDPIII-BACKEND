@@ -1,8 +1,12 @@
 import express from "express"
 import { UserController } from "../controllers/user.controller.js"
 import { verifyToken, verifyAdmin } from "../Middlewares/jwt.middleware.js"
+import cors from "cors"
+
 
 const router = express.Router()
+
+router.options("*", cors())
 
 router.post("/register", UserController.register)
 router.post("/login", UserController.login)
@@ -14,7 +18,6 @@ router.get("/pets", verifyToken, UserController.getUserPets)
 router.post("/recover-password", UserController.recoverPassword)
 router.delete("/remove/:id", verifyToken, verifyAdmin, UserController.removeUser)
 router.get("/search", verifyToken, verifyAdmin, UserController.searchByName)
-
 
 export default router
 

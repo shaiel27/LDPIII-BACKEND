@@ -1,6 +1,6 @@
 import { db } from "../database/connection.database.js"
 
-const create = async ({ first_name, last_name, telephone_number, email, password, location, security_word }) => {
+const create = async ({ first_name, last_name, telephone_number, email, password, permissions, location }) => {
   try {
     const getMaxIdQuery = {
       text: 'SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM "user"',
@@ -11,11 +11,11 @@ const create = async ({ first_name, last_name, telephone_number, email, password
 
     const query = {
       text: `
-            INSERT INTO "user" (id, first_name, last_name, telephone_number, email, password, permissions, location, security_word)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO "user" (id, first_name, last_name, telephone_number, email, password, permissions, location)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id, email, first_name, last_name, telephone_number, location, permissions
             `,
-      values: [next_id, first_name, last_name, telephone_number, email, password, 3, location, security_word],
+      values: [next_id, first_name, last_name, telephone_number, email, password, permissions, location],
     }
     const { rows } = await db.query(query)
     return rows[0]
@@ -44,6 +44,7 @@ const findOneByEmail = async (email) => {
   }
 }
 
+
 const findOneById = async (id) => {
   try {
     const query = {
@@ -67,13 +68,13 @@ const findAll = async () => {
   try {
     const query = {
       text: `
-            SELECT u.id, u.first_name, u.last_name, u.email, 
-                   u.telephone_number, u.location, u.created_at,
-                   p.permission_name
-            FROM "user" u
-            LEFT JOIN permissions p ON u.permissions = p.id
-            ORDER BY u.id
-            `,
+        SELECT u.id, u.first_name, u.last_name, u.email, 
+               u.telephone_number, u.location, u.created_at,
+               p.permission_name
+        FROM "user" u
+        LEFT JOIN permissions p ON u.permissions = p.id
+        ORDER BY u.id
+      `,
     }
     const { rows } = await db.query(query)
     return rows
@@ -216,12 +217,7 @@ const saveLoginToken = async (id, token, expiration) => {
 const findUserByLoginToken = async (token) => {
   try {
     const query = {
-      text: `
-        SELECT u.*, p.permission_name
-        FROM "user" u
-        LEFT JOIN permissions p ON u.permissions = p.id
-        WHERE u.user_token = $1 AND u.login_token_expiration > NOW()
-      `,
+      text: 'SELECT * FROM "user" WHERE user_token = $1',
       values: [token],
     }
     const { rows } = await db.query(query)
@@ -231,7 +227,6 @@ const findUserByLoginToken = async (token) => {
     throw error
   }
 }
-
 
 const clearLoginToken = async (id) => {
   try {
@@ -257,14 +252,25 @@ const findUserById = async (id) => {
       values: [id],
     }
     const { rows } = await db.query(query)
-    console.log("Query result:", rows); // Añade este log
     return rows[0]
   } catch (error) {
     console.error("Error in findUserById:", error)
     throw error
   }
 }
-
+const remove = async (id) => {
+  try {
+    const query = {
+      text: 'DELETE FROM "user" WHERE id = $1 RETURNING id',
+      values: [id],
+    }
+    const { rows } = await db.query(query)
+    return rows[0]
+  } catch (error) {
+    console.error("Error in remove user:", error)
+    throw error
+  }
+}
 export const UserModel = {
     create,
     findOneByEmail,
@@ -280,5 +286,7 @@ export const UserModel = {
     findUserByLoginToken,
     clearLoginToken,
     findUserById,
+    remove,
+    
   }
 
